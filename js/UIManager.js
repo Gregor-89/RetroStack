@@ -13,12 +13,30 @@ export class UIManager {
 
         // Screens
         this.startScreen = document.getElementById('start-screen');
-        this.pauseScreen = document.getElementById('pause-screen');
+        this.pauseScreen = document.getElementById('pause-modal');
         this.optionsScreen = document.getElementById('options-screen');
         this.howToScreen = document.getElementById('how-to-play-screen');
         this.encyclopediaScreen = document.getElementById('encyclopedia-screen');
+        this.challengesScreen = document.getElementById('challenges-screen'); // Challenges
         this.introScreen = document.getElementById('intro-screen'); // Intro
         this.encyclopediaList = document.getElementById('encyclopedia-list');
+        this.challengesList = document.getElementById('challenges-list');
+
+        // Challenge Modal
+        this.challengeModal = document.getElementById('challenge-details-modal');
+        this.modalTitle = document.getElementById('modal-title');
+        this.modalDesc = document.getElementById('modal-desc');
+        this.modalStats = document.getElementById('modal-stats');
+        this.modalBestScore = document.getElementById('modal-best-score');
+        this.btnChallengeStart = document.getElementById('btn-challenge-start');
+        this.btnChallengeClose = document.getElementById('btn-challenge-close');
+
+        // Victory Modal
+        this.victoryModal = document.getElementById('victory-modal');
+        this.victoryTitle = document.getElementById('victory-title');
+        this.victoryDesc = document.getElementById('victory-desc');
+        this.btnVictoryBack = document.getElementById('btn-victory-back');
+        this.btnVictoryStay = document.getElementById('btn-victory-stay');
 
         // Lightbox
         this.lightbox = document.getElementById('lightbox-overlay');
@@ -28,6 +46,9 @@ export class UIManager {
         if (this.lightbox) {
             this.lightbox.addEventListener('click', () => this.hideLightbox());
         }
+
+        // Credits Screen
+        this.creditsScreen = document.getElementById('credits-screen');
 
 
     }
@@ -70,7 +91,7 @@ export class UIManager {
         this.heightEl.innerText = text;
     }
 
-    updateGameTime(seconds) {
+    updateGameTime(seconds, isWarning = false) {
         // Format MM:SS
         const m = Math.floor(seconds / 60).toString().padStart(2, '0');
         const s = Math.floor(seconds % 60).toString().padStart(2, '0');
@@ -103,7 +124,10 @@ export class UIManager {
                 }
             }
         }
-        if (this.timeEl) this.timeEl.innerText = `${m}:${s}`;
+        if (this.timeEl) {
+            this.timeEl.innerText = `${m}:${s}`;
+            this.timeEl.style.color = isWarning ? '#ff0000' : '#ffffff';
+        }
     }
 
     updateScore(score) {
@@ -113,6 +137,39 @@ export class UIManager {
 
     updateNextConsole(name) {
         this.nextNameEl.innerText = name;
+    }
+
+    updateTargetYear(year) {
+        // Find or create element
+        let el = document.getElementById('target-year-display');
+        if (!el) {
+            const hud = document.getElementById('game-header');
+            if (hud) {
+                el = document.createElement('div');
+                el.id = 'target-year-display';
+                el.className = 'timer-display'; // Reuse style
+                // Positioning inside Header (which is flex usually, or absolute items?)
+                // Let's assume absolute center bottom of header.
+                el.style.position = 'absolute';
+                el.style.top = '70%'; // Near bottom of header bar
+                el.style.left = '50%';
+                el.style.transform = 'translate(-50%, 0)';
+                el.style.color = '#ffff00'; // Yellow
+                el.style.fontSize = '20px'; // Slightly smaller than Time
+                el.style.fontFamily = "'VT323', monospace";
+                el.style.textShadow = '1px 1px 0 #000';
+                el.style.zIndex = '101';
+                hud.appendChild(el);
+            }
+        }
+        if (el) {
+            if (year) {
+                el.innerText = (year === "KONIEC") ? "WYZWANIE UKOŃCZONE" : `ROCZNIK: ${year}`;
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none'; // Hide if null
+            }
+        }
     }
 
     updateTimer(current, max) {
@@ -185,6 +242,8 @@ export class UIManager {
         this.howToScreen.classList.add('hidden');
         this.encyclopediaScreen.classList.add('hidden');
         this.optionsScreen.classList.add('hidden');
+        this.challengesScreen.classList.add('hidden');
+        if (this.creditsScreen) this.creditsScreen.classList.add('hidden');
     }
 
     hideStartScreen() {
@@ -199,6 +258,15 @@ export class UIManager {
     hideHowTo() {
         this.howToScreen.classList.add('hidden');
         this.startScreen.classList.remove('hidden');
+    }
+
+    showGameplayUI() {
+        // Ensure HUD and Timer are visible
+        const timerContainer = document.getElementById('timer-container');
+        if (timerContainer) timerContainer.style.display = 'block';
+
+        // Header logic is handled by Game.toggleGameHeader, 
+        // but we can ensure base visibility here if needed.
     }
 
     showEncyclopedia() {
@@ -216,6 +284,118 @@ export class UIManager {
     hideEncyclopedia() {
         this.encyclopediaScreen.classList.add('hidden');
         this.startScreen.classList.remove('hidden');
+    }
+
+    showCredits() {
+        this.startScreen.classList.add('hidden');
+        if (this.creditsScreen) this.creditsScreen.classList.remove('hidden');
+    }
+
+    hideCredits() {
+        if (this.creditsScreen) this.creditsScreen.classList.add('hidden');
+        this.startScreen.classList.remove('hidden');
+    }
+
+    showChallengesScreen(challenges, completedMap, onSelect) {
+        this.startScreen.classList.add('hidden');
+        this.challengesScreen.classList.remove('hidden');
+
+        if (this.challengesList) {
+            this.challengesList.innerHTML = '';
+            const focusIds = []; // NEW: Array for InputManager
+
+            challenges.forEach((c, index) => {
+                const isCompleted = completedMap.includes(c.id);
+                const el = document.createElement('div');
+                // Create unique ID for gamepad navigation
+                const itemId = `challenge-item-${index}`;
+                el.id = itemId;
+                focusIds.push(itemId);
+
+                el.className = `challenge-item ${isCompleted ? 'completed' : ''}`;
+                el.innerHTML = `
+                    <div class="challenge-info">
+                        <h3>${c.title}</h3>
+                        <p>${c.description}</p>
+                    </div>
+                    <div style="font-size: 32px; color: ${isCompleted ? '#00ff00' : '#444'};">
+                        ${isCompleted ? '✓' : '○'}
+                    </div>
+                `;
+                el.addEventListener('click', () => onSelect(c));
+                this.challengesList.appendChild(el);
+            });
+
+            // Update InputManager
+            if (this.game.inputManager) {
+                this.game.inputManager.focusGroups['challenges'] = focusIds;
+                this.game.inputManager.activeScreen = 'challenges';
+                this.game.inputManager.currentFocusIndex = 0;
+                this.game.inputManager.updateFocusVisuals();
+            }
+        }
+    }
+
+    hideChallengesScreen() {
+        this.challengesScreen.classList.add('hidden');
+        this.startScreen.classList.remove('hidden');
+        // Reset Input
+        if (this.game.inputManager) {
+            this.game.inputManager.activeScreen = 'menu';
+            this.game.inputManager.updateFocusVisuals();
+        }
+    }
+
+    showChallengeDetails(challenge, bestScore, onStart, onClose) {
+        if (!this.challengeModal) return;
+
+        this.modalTitle.innerText = challenge.title;
+        this.modalDesc.innerText = challenge.description;
+
+        if (bestScore !== null) {
+            this.modalStats.style.display = 'block';
+            this.modalBestScore.innerText = bestScore; // TODO: Format based on win condition (height/time)
+        } else {
+            this.modalStats.style.display = 'none';
+        }
+
+        // Cleanup old listeners
+        const newStartBtn = this.btnChallengeStart.cloneNode(true);
+        this.btnChallengeStart.parentNode.replaceChild(newStartBtn, this.btnChallengeStart);
+        this.btnChallengeStart = newStartBtn;
+
+        const newCloseBtn = this.btnChallengeClose.cloneNode(true);
+        this.btnChallengeClose.parentNode.replaceChild(newCloseBtn, this.btnChallengeClose);
+        this.btnChallengeClose = newCloseBtn;
+
+        this.btnChallengeStart.addEventListener('click', () => {
+            this.hideChallengeDetails();
+            onStart(challenge.id);
+        });
+
+        this.btnChallengeClose.addEventListener('click', () => {
+            this.hideChallengeDetails();
+            if (onClose) onClose();
+            // Restore Input to Challenges List
+            if (this.game.inputManager) {
+                this.game.inputManager.activeScreen = 'challenges';
+                this.game.inputManager.updateFocusVisuals();
+            }
+        });
+
+        this.challengeModal.classList.remove('hidden');
+
+        // SWITCH INPUT CONTEXT TO MODAL
+        if (this.game.inputManager) {
+            this.game.inputManager.registerScreen('challenge-modal', ['btn-challenge-start', 'btn-challenge-close']);
+            this.game.inputManager.setScreen('challenge-modal');
+        }
+
+        this.challengeModal.classList.remove('hidden');
+    }
+
+    hideChallengeDetails() {
+        if (this.challengeModal) this.challengeModal.classList.add('hidden');
     }
 
     populateEncyclopedia() {
@@ -305,5 +485,35 @@ export class UIManager {
         document.getElementById('ui-layer').appendChild(el);
 
         setTimeout(() => el.remove(), 1000);
+    }
+    showVictoryModal(challenge, onBack, onStay) {
+        if (!this.victoryModal) return;
+
+        if (this.victoryDesc && challenge) {
+            // Optional: Customize text
+        }
+
+        this.victoryModal.classList.remove('hidden');
+
+        // Helper to setup button (clone to clear listeners)
+        const setupBtn = (btn, callback) => {
+            if (btn) {
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                newBtn.addEventListener('click', () => {
+                    this.hideVictoryModal();
+                    if (callback) callback();
+                });
+                return newBtn;
+            }
+            return null;
+        };
+
+        this.btnVictoryBack = setupBtn(this.btnVictoryBack, onBack);
+        this.btnVictoryStay = setupBtn(this.btnVictoryStay, onStay);
+    }
+
+    hideVictoryModal() {
+        if (this.victoryModal) this.victoryModal.classList.add('hidden');
     }
 }

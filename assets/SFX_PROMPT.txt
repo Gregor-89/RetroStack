@@ -1,0 +1,6 @@
+Prompt for AI Audio Generator:
+
+"A retro arcade victory sound effect. 8-bit or 16-bit style fanfare. Short, triumphant, and energetic. Similar to completing a level in Mario or Sonic. Length: 2-3 seconds. No background noise, clean synthesizer sound."
+
+Filename: victory.mp3 or victory.wav
+Target Location: c:/Users/grzeg/OneDrive/Dokumenty/Antigravity/RetroStack/assets/sfx/victory.mp3

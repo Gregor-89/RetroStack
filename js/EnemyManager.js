@@ -288,6 +288,15 @@ export class EnemyManager {
 
         let allTypes = ['zagrajnik', 'archon', 'quaz', 'ryslaw', 'nrgeek', 'lipski', 'kosinski', 'polowianiuk', 'uv'];
 
+        if (game.activeChallenge && game.activeChallenge.config && game.activeChallenge.config.onlySpawnEnemy) {
+            allTypes = [game.activeChallenge.config.onlySpawnEnemy];
+        }
+        // Challenge Restriction: Block specific enemies
+        else if (game.activeChallenge && game.activeChallenge.config && game.activeChallenge.config.disabledEnemies) {
+            const disabled = game.activeChallenge.config.disabledEnemies;
+            allTypes = allTypes.filter(type => !disabled.includes(type));
+        }
+
         // Filter by User Settings (enabledEnemies)
         if (game.enabledEnemies) {
             allTypes = allTypes.filter(type => game.enabledEnemies[type] !== false);

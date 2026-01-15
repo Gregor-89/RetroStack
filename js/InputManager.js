@@ -197,6 +197,8 @@ export class InputManager {
             if (screen) container = screen.querySelector('.scroll-content');
         } else if (this.activeScreen === 'encyclopedia') {
             container = document.getElementById('encyclopedia-list');
+        } else if (this.activeScreen === 'challenges') {
+            container = document.getElementById('challenges-list');
         }
 
         if (container) {
@@ -205,9 +207,17 @@ export class InputManager {
     }
 
     triggerBack() {
-        // Heuristic: Find a button ID containing 'back' or 'quit' in current group?
-        // Or just hardcode logic based on screen.
-        // For now, let Game.js handle Escape.
+        if (this.activeScreen === 'challenges') {
+            document.getElementById('btn-challenges-back')?.click();
+        } else if (this.activeScreen === 'challenge-modal') {
+            document.getElementById('btn-challenge-close')?.click();
+        } else if (this.activeScreen === 'options') {
+            document.getElementById('btn-options-back')?.click();
+        } else if (this.activeScreen === 'howto') {
+            document.getElementById('btn-how-back')?.click();
+        } else if (this.activeScreen === 'encyclopedia') {
+            document.getElementById('btn-enc-back')?.click();
+        }
     }
 
     update(dt) {
@@ -354,6 +364,12 @@ export class InputManager {
                     }
                     else if (this.activeScreen === 'encyclopedia') {
                         document.getElementById('btn-enc-back')?.click();
+                    }
+                    else if (this.activeScreen === 'challenges') {
+                        document.getElementById('btn-challenges-back')?.click();
+                    }
+                    else if (this.activeScreen === 'challenge-modal') {
+                        document.getElementById('btn-challenge-close')?.click();
                     }
                 }
             }

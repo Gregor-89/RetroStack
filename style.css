@@ -205,13 +205,28 @@ body {
     z-index: 100;
 }
 
+/* Fix for Pause/Game Over Modal Sizing */
+#pause-screen .modal-content,
+#pause-modal .modal-content,
+#game-over-screen .modal-content {
+    min-width: 600px;
+    /* Increased from 300px */
+    width: auto;
+    padding: 40px;
+    text-align: center;
+    /* Ensure centering */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 #start-screen {
     background: #111;
     z-index: 200;
 }
 
 #game-logo {
-    max-width: 80%;
+    max-width: 60%;
     height: auto;
     margin-bottom: 20px;
     animation: logoPulse 3s infinite ease-in-out;
@@ -275,7 +290,8 @@ h1 {
     box-shadow: 4px 4px 0 #000;
 }
 
-.menu-btn:hover {
+.menu-btn:hover,
+.menu-btn.focused {
     background: #555;
     color: #ffcc00;
     border-color: #ffcc00;
@@ -600,12 +616,20 @@ h1 {
 }
 
 .enemy-info p {
-    margin: 0;
     font-size: 18px;
     color: #ccc;
+    line-height: 1.2;
+    margin: 0;
 }
 
-
+.challenges-intro {
+    max-width: 800px;
+    text-align: center;
+    margin: 0 auto 30px auto;
+    font-size: 20px;
+    line-height: 1.4;
+    color: #ddd;
+}
 
 /* SLIDER STYLING */
 input[type=range] {
@@ -732,7 +756,7 @@ input[type=range]::-webkit-slider-runnable-track {
     box-shadow: 0 0 50px rgba(0, 0, 0, 1);
     border: 2px solid #555;
     background: #111;
-    /* Nearest Neighbor for pixel art crispness if needed, 
+    /* Nearest Neighbor for pixel art crispness if needed,
         but these are likely photos or high-res sprites */
     image-rendering: pixelated;
 }
@@ -854,7 +878,7 @@ input[type=range]::-webkit-slider-runnable-track {
     left: 0;
     width: 100%;
     height: 100%;
-    background: url('assets/intro/intro.png') no-repeat center center;
+    background: url('assets/intro/intro.jpg') no-repeat center center;
     background-size: contain;
     /* Or cover, depending on preference. Contain preserves ratio. */
     z-index: 1;
@@ -961,4 +985,347 @@ input[type=range]::-webkit-slider-runnable-track {
 
 #loading-screen.active {
     display: flex !important;
+}
+
+/* Button Colors */
+.btn-green {
+    border-color: #00ff00;
+    color: #00ff00;
+}
+
+.btn-green:hover,
+.btn-green.focused {
+    background: #004400;
+    box-shadow: 0 0 15px #00ff00;
+}
+
+.btn-red {
+    border-color: #ff0000;
+    color: #ff0000;
+}
+
+.btn-red:hover,
+.btn-red.focused {
+    background: #440000;
+    box-shadow: 0 0 15px #ff0000;
+}
+
+.btn-blue {
+    border-color: #0088ff;
+    color: #0088ff;
+}
+
+.btn-blue:hover,
+.btn-blue.focused {
+    background: #002244;
+    box-shadow: 0 0 15px #0088ff;
+}
+
+.btn-purple {
+    border-color: #cc00ff;
+    color: #cc00ff;
+}
+
+.btn-purple:hover,
+.btn-purple.focused {
+    background: #440044;
+    box-shadow: 0 0 15px #cc00ff;
+}
+
+.btn-gold {
+    border-color: #ffcc00;
+    color: #ffcc00;
+}
+
+.btn-gold:hover,
+.btn-gold.focused {
+    background: #443300;
+    box-shadow: 0 0 15px #ffcc00;
+}
+
+.btn-grey {
+    border-color: #888;
+    color: #888;
+}
+
+.btn-grey:hover,
+.btn-grey.focused {
+    background: #333;
+    box-shadow: 0 0 15px #888;
+}
+
+
+/* =========================================
+   CHALLENGE MENU & MODALS
+   ========================================= */
+#challenges-screen {
+    background: #111;
+    z-index: 300;
+}
+
+.challenge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    width: 100%;
+    padding: 20px;
+}
+
+#pause-modal {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.challenge-item {
+    background: #222;
+    border: 2px solid #555;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    /* FIX: Align checkmark to right */
+    align-items: center;
+    justify-content: space-between;
+    min-height: 100px;
+    /* Reduced height */
+}
+
+.challenge-item:hover,
+.challenge-item.focused {
+    background: #333;
+    border-color: #ffcc00;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.challenge-item.completed {
+    border-color: #00ff00;
+    background: #112211;
+}
+
+.challenge-info {
+    flex: 1;
+    margin-right: 15px;
+}
+
+.challenge-info h3 {
+    margin-top: 0;
+    font-size: 24px;
+    color: #ffcc00;
+    margin-bottom: 5px;
+}
+
+.challenge-info p {
+    font-size: 18px;
+    color: #ccc;
+    line-height: 1.2;
+    margin: 0;
+}
+
+/* Modal Specifics */
+#challenge-details-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#challenge-details-modal.hidden {
+    display: none !important;
+}
+
+#challenge-details-modal .modal-content {
+    min-width: 500px;
+    max-width: 700px;
+    text-align: center;
+    background: #111;
+    border: 4px solid #ffcc00;
+    padding: 50px 40px;
+    /* More padding top/bottom */
+    box-shadow: 0 0 50px rgba(0, 0, 0, 1);
+    position: relative;
+    /* For absolute close button */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#modal-title {
+    font-size: 42px;
+    color: #ffcc00;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 0 #000;
+    text-transform: uppercase;
+}
+
+#modal-desc {
+    font-size: 20px;
+    line-height: 1.5;
+    color: #ddd;
+    margin-bottom: 30px;
+}
+
+#btn-challenge-close {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    width: auto;
+    height: auto;
+    padding: 0;
+    line-height: 1;
+    font-size: 36px;
+    background: transparent;
+    border: none;
+    color: #444;
+    /* Darker initially */
+    margin: 0;
+    box-shadow: none;
+    font-family: sans-serif;
+    transition: all 0.2s;
+}
+
+#btn-challenge-close:hover {
+    background: transparent;
+    color: #ff0000;
+    transform: scale(1.2) rotate(90deg);
+    /* Nice effect on hover */
+    box-shadow: none;
+}
+
+#challenge-stats {
+    background: #000;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px dashed #555;
+    color: #ffcc00;
+    width: 100%;
+    /* Fill width */
+}
+
+/* =========================================
+   VICTORY MODAL
+   ========================================= */
+#victory-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#victory-modal.hidden {
+    display: none !important;
+}
+
+#victory-modal .modal-content {
+    background: #111;
+    border: 4px solid #00ff00;
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.4);
+    min-width: 500px;
+    padding: 40px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#victory-title {
+    color: #00ff00;
+    font-size: 48px;
+    margin-bottom: 20px;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+}
+
+#victory-desc {
+    font-size: 24px;
+    margin-bottom: 30px;
+}
+
+/* =========================================
+   CREDITS SCREEN
+   ========================================= */
+.credits-content {
+    text-align: center;
+    /* Centering */
+}
+
+.credits-content p {
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+.credits-content img {
+    max-width: 60% !important;
+    /* Force smaller size */
+    margin: 20px auto;
+    display: block;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.2);
+}
+
+.credits-content .small-note {
+    font-size: 16px;
+    color: #888;
+    font-style: italic;
+    margin-top: -10px;
+}
+
+.credits-content .small-note {
+    font-size: 16px;
+    color: #888;
+    font-style: italic;
+    margin-top: -10px;
+}
+
+.author-link {
+    color: #ffcc00;
+    text-decoration: none;
+    position: relative;
+    border-bottom: 1px dashed #ffcc00;
+    transition: all 0.2s;
+}
+
+.author-link:hover {
+    color: #fff;
+    border-bottom-style: solid;
+}
+
+/* Tooltip for Author Link */
+.author-link[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 5px 10px;
+    border: 1px solid #ffcc00;
+    font-size: 14px;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+    box-shadow: 4px 4px 0 #000;
+
+}
+
+/* FORCE OVERRIDE FOR CLOSE BUTTON */
+#btn-challenge-close.menu-btn,
+#btn-challenge-close {
+    width: auto !important;
+    min-width: 0 !important;
+    right: 20px !important;
+    top: 10px !important;
 }

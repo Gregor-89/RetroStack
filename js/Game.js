@@ -6,6 +6,7 @@ import { EnemyManager } from './EnemyManager.js';
 import { GameConfig } from './Config.js'; // Import Config
 import { CONSOLE_DATA } from './ConsoleData.js';
 import { InputManager } from './InputManager.js';
+import { ChallengeManager } from './challenges/ChallengeManager.js';
 
 
 // Particle System Class
@@ -73,13 +74,14 @@ export class Game {
         this.physicsWorld = new PhysicsWorld('game-container', this.width, this.height);
         this.uiManager = new UIManager();
         this.inputManager = new InputManager(this); // Init Input
+        this.challengeManager = new ChallengeManager(this); // Challenge System
         this.player = new Player(this.width, this.height);
         this.enemyManager = new EnemyManager(this.physicsWorld, this.width, this.height);
 
         // Game State
         this.isPlaying = false;
-        // Game State
-        this.isPlaying = false;
+        this.activeChallenge = null;
+        this.dropOrder = 'random'; // Default
         this.isGameOver = false;
         this.lastTime = 0;
         this.dropTimerMax = GameConfig.Gameplay.autoDropTime || 15;
@@ -97,8 +99,6 @@ export class Game {
         this.particles = [];
         this.shakeTimer = 0;
         this.shakeIntensity = 0;
-        this.dropOrder = 'random'; // 'random', 'asc', 'desc' (default random)
-        this.chronoIndex = -1; // Tracker for chronological drop
         this.dropOrder = 'random'; // 'random', 'asc', 'desc' (default random)
         this.chronoIndex = -1; // Tracker for chronological drop
         this.bgGridOffset = 0;
@@ -132,10 +132,10 @@ export class Game {
         ];
 
         this.consoleTypes = []; // dynamic population
+        this.availableConsoles = []; // Deck of available blocks
         this.textures = {};
         this.characterTextures = {}; // Separate cache for enemies
 
-        // AUDIO
         // AUDIO
         this.sfxVolume = 0.5;
         this.musicVolume = 0.5;
@@ -145,7 +145,7 @@ export class Game {
             'block_drop.mp3', 'block_impact.mp3', 'game_over.mp3',
             'bomb_drop.mp3', 'bomb_impact.mp3', 'bomb_explode.mp3',
             'effect_alert.mp3', 'score_gain.mp3', 'score_loss.mp3',
-            'enemy_death.mp3'
+            'enemy_death.mp3', 'victory.mp3'
         ];
 
         this.introAudio = new Audio('assets/music/intro.mp3');
@@ -157,7 +157,7 @@ export class Game {
 
         // Custom Render Hook
         Matter.Events.on(this.physicsWorld.render, 'afterRender', () => {
-            if (this.isPlaying || this.isPaused) this.draw();
+            if (this.isPlaying || this.isPaused || this.isGameOver) this.draw();
         });
 
         // Collision Events
@@ -190,8 +190,6 @@ export class Game {
         this.isPlaying = false;
         this.isPaused = false;
 
-        // Hide Start Screen initially, show Loading
-        // this.uiManager.showStartScreen(); // Moved to after load
         // Hide Start Screen initially, show Loading
         // this.uiManager.showStartScreen(); // Moved to after load
         this.initBootScreen(); // Setup boot interaction
@@ -229,13 +227,20 @@ export class Game {
     // Unified initBootScreen handles both Listeners and Boot Sequence
     initBootScreen() {
         // 1. ATTACH MENU LISTENERS
-        document.getElementById('btn-start').addEventListener('click', () => {
+        const bindBtn = (id, callback) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', callback);
+            else console.warn(`Button not found: ${id}`);
+        };
+
+        bindBtn('btn-start', () => {
             console.log("BTN: Start Clicked");
             this.startGame();
         });
-        document.getElementById('btn-resume').addEventListener('click', () => this.togglePause()); // Resume from pause
-        document.getElementById('btn-pause-header').addEventListener('click', () => this.togglePause());
-        document.getElementById('btn-quit').addEventListener('click', () => this.resetGame());
+        bindBtn('btn-resume', () => this.togglePause());
+        bindBtn('btn-restart', () => this.restartGame());
+        bindBtn('btn-pause-header', () => this.togglePause());
+        bindBtn('btn-quit', () => this.resetGame());
 
         // Retry Button
         const btnRetry = document.getElementById('btn-retry');
@@ -303,6 +308,25 @@ export class Game {
             this.inputManager.setScreen('start');
         });
 
+        document.getElementById('btn-challenges').addEventListener('click', () => {
+            this.openChallengesMenu();
+        });
+
+        document.getElementById('btn-challenges-back').addEventListener('click', () => {
+            this.uiManager.hideChallengesScreen();
+            this.inputManager.setScreen('start');
+        });
+
+        // Credits Listeners
+        document.getElementById('btn-credits').addEventListener('click', () => {
+            this.uiManager.showCredits();
+            this.inputManager.setScreen('credits');
+        });
+        document.getElementById('btn-credits-back').addEventListener('click', () => {
+            this.uiManager.hideCredits();
+            this.inputManager.setScreen('start');
+        });
+
         // 4. CRT & CONTROLS BINDING
         const crtOverlay = document.getElementById('crt-overlay');
         const bindCheckbox = (id, propName, callback) => {
@@ -361,7 +385,7 @@ export class Game {
         });
 
         // REGISTER MENUS FOR NAVIGATION
-        this.inputManager.registerScreen('start', ['btn-start', 'btn-how-to', 'btn-encyclopedia', 'btn-options']);
+        this.inputManager.registerScreen('start', ['btn-start', 'btn-challenges', 'btn-how-to', 'btn-encyclopedia', 'btn-options', 'btn-credits']);
         this.inputManager.registerScreen('options', [
             'opt-music-vol', 'opt-sfx-vol',
             'opt-crt-toggle', 'opt-crt-intensity',
@@ -373,10 +397,13 @@ export class Game {
             'opt-enemy-ryslaw', 'opt-enemy-uv', 'opt-enemy-zagrajnik',
             'btn-options-back'
         ]);
-        this.inputManager.registerScreen('pause', ['btn-resume', 'btn-quit']);
+        this.inputManager.registerScreen('pause', ['btn-resume', 'btn-restart', 'btn-quit']);
         this.inputManager.registerScreen('gameover', ['btn-retry', 'btn-gameover-quit']);
         this.inputManager.registerScreen('howto', ['btn-how-back']);
         this.inputManager.registerScreen('encyclopedia', ['btn-enc-back']);
+        this.inputManager.registerScreen('challenges', ['btn-challenges-back']); // Simple list navigation TODO: Make dynamic
+        this.inputManager.registerScreen('challenge_details', ['btn-challenge-start', 'btn-challenge-close']);
+        this.inputManager.registerScreen('credits', ['btn-credits-back']);
 
         this.inputManager.setScreen('boot'); // Set Input Context to Boot for Gamepad support
 
@@ -384,6 +411,143 @@ export class Game {
 
         // 5. BOOT SEQUENCE
         this.setupBootSequence();
+    }
+
+    openChallengesMenu() {
+        const challenges = this.challengeManager.challenges;
+        const completed = this.challengeManager.completedChallenges;
+
+        this.uiManager.showChallengesScreen(challenges, completed, (selectedChallenge) => {
+            // On Challenge Select
+            this.inputManager.setScreen('challenge_details');
+            this.uiManager.showChallengeDetails(
+                selectedChallenge,
+                null, // TODO: Best Score
+                (id) => {
+                    // On Start
+                    this.challengeManager.startChallenge(id);
+                },
+                () => {
+                    // On Close
+                    this.inputManager.setScreen('challenges');
+                }
+            );
+        });
+        this.inputManager.setScreen('challenges');
+    }
+
+    startChallengeGame(challenge) {
+        this.activeChallenge = challenge;
+        this.resetGame();
+
+        // Force immediate start (after reset)
+        this.isPlaying = true;
+        this.uiManager.hideChallengesScreen();
+        this.uiManager.hideStartScreen();
+        this.uiManager.showGameplayUI();
+        this.physicsWorld.start(); // MD: Fix - Start Physics!
+        this.lastTime = performance.now(); // MD: Fix - Init Time!
+        this.setGameControlsVisible(true);
+        this.toggleGameHeader(true);
+        this.inputManager.setScreen('gameplay');
+        this.playGameplayMusic();
+
+        this.uiManager.showFloatingText(this.width / 2, this.height / 2, "WYZWANIE START!", "#ffcc00");
+
+        // Apply specific challenge configs (if any)
+        if (challenge.config) {
+            // e.g. if (challenge.config.allowBombs === false) ...
+            // Handled in dropBomb/logic, but we set state here if needed
+        }
+    }
+
+    checkChallengeWinCondition() {
+        if (!this.activeChallenge) return;
+
+        const win = this.activeChallenge.winCondition;
+        if (!win) return;
+
+        // Condition: TYPE = 'height'
+        if (win.type === 'height') {
+            const currentHeight = this.currentTowerHeight || 0; // Use calculated meters
+
+            // DEBUG LOG (Throttle to once per second approx or just log distinct values?)
+            // Let's log every 60 frames roughly or use a dirty flag? 
+            // Just log when height changes?
+            if (this._lastDebugHeight !== currentHeight) {
+                console.log(`[Challenge Debug] Height: ${currentHeight} / Target: ${win.value} | Win? ${currentHeight >= win.value}`);
+                this._lastDebugHeight = currentHeight;
+            }
+
+            if (currentHeight >= win.value) {
+                console.log("WIN CONDITION MET!");
+                this.triggerChallengeWin();
+            }
+        }
+
+        // Condition: TYPE = 'chronological_order'
+        if (win.type === 'chronological_order') {
+            // Win if stack count equals total unique consoles count
+            // Assuming no duplicates are spawned in this mode?
+            // Actually, randomizeNextBlock loops through consoleTypes.
+            // If they stack ALL of them, they win.
+            if (this.stackHeight >= this.consoleTypes.length) {
+                this.triggerChallengeWin();
+            }
+        }
+
+        // FAIL CONDITION: TIME LIMIT
+        if (win.timeLimit) {
+            if (this.gameTime >= win.timeLimit) {
+                this.triggerChallengeFail("CZAS MINĄŁ!");
+            }
+        }
+    }
+
+    triggerChallengeFail(reason) {
+        this.uiManager.showFloatingText(this.width / 2, this.height / 3, reason, "#ff0000");
+        this.triggersGameOver();
+    }
+
+    triggerChallengeWin() {
+        this.isPlaying = false;
+        this.isGameOver = true; // Effectively stops game
+        this.uiManager.showFloatingText(this.width / 2, this.height / 3, "ZWYCIĘSTWO!", "#00ff00");
+        this.playSFX('victory'); // MD: Fix - Use new Victory SFX
+
+        // Mark Completed
+        if (this.activeChallenge) {
+            this.challengeManager.markCompleted(this.activeChallenge.id);
+        }
+
+        // Stop Physics (Freeze Game)
+        this.physicsWorld.stop();
+
+        // Show Victory Modal
+        setTimeout(() => {
+            this.uiManager.showVictoryModal(this.activeChallenge,
+                () => {
+                    // ON BACK (Return to Challenges)
+                    this.resetGame();
+                    this.activeChallenge = null;
+                    this.uiManager.hideStartScreen();
+
+                    // Delegate rendering to UIManager
+                    this.openChallengesMenu();
+                },
+                () => {
+                    // ON STAY (Continue Playing)
+                    this.isPlaying = true;
+                    this.isGameOver = false; // Resume Game Loop
+                    this.activeChallenge = null; // Disable checking for win again
+                    this.inputManager.setScreen('gameplay');
+                    this.uiManager.hideVictoryModal(); // Ensure it closes
+
+                    // Resume Physics
+                    this.physicsWorld.start();
+                }
+            );
+        }, 1000); // 1s delay for dramatic effect
     }
 
     setupBootSequence() {
@@ -398,7 +562,10 @@ export class Game {
             document.removeEventListener('keydown', this._handleBootAction);
         };
 
-        this._handleBootAction = () => this.skipBoot();
+        this._handleBootAction = (e) => {
+            if (e) e.stopPropagation();
+            this.skipBoot();
+        };
 
         document.addEventListener('click', this._handleBootAction);
         document.addEventListener('keydown', this._handleBootAction);
@@ -423,6 +590,97 @@ export class Game {
         if (this._bootCleanup) this._bootCleanup();
     }
 
+    openChallengesMenu() {
+        this.inputManager.setScreen('challenges');
+
+        // RESET TRANSFORMS
+        this.container.style.transform = 'none';
+
+        // Delegate rendering to UIManager
+        this.uiManager.showChallengesScreen(
+            this.challengeManager.challenges,
+            this.challengeManager.completedChallenges,
+            (challenge) => {
+                // ON SELECT: Show Details
+                this.uiManager.showChallengeDetails(
+                    challenge,
+                    null, // TODO: Best Score
+                    (id) => {
+                        this.challengeManager.startChallenge(id);
+                    },
+                    () => {
+                        // On Close
+                    }
+                );
+            }
+        );
+    }
+
+    startChallengeGame(challenge) {
+        this.resetGame();
+        this.activeChallenge = challenge;
+        this.challengeManager.activeChallenge = challenge; // Sync
+
+        // Apply Config
+        if (challenge.config) {
+            // Spawn Timer Init
+            if (challenge.config.firstEnemySpawnTime) {
+                if (this.enemyManager) this.enemyManager.spawnTimer = challenge.config.firstEnemySpawnTime;
+            } else {
+                if (this.enemyManager) this.enemyManager.spawnTimer = 15;
+            }
+
+            // Drop Order (Legacy or Specific)
+            if (challenge.config.dropOrder) {
+                this.dropOrder = challenge.config.dropOrder;
+            } else {
+                this.dropOrder = 'random';
+            }
+
+            // Selection Mode (Manual)
+            if (challenge.config.selectionMode === 'manual') {
+                // Sort by Selection Order
+                if (challenge.config.selectionOrder === 'alpha_asc') {
+                    this.dropOrder = 'alpha_asc'; // Reuse sort logic
+                }
+                this.sortConsoles();
+                // Set initial index to 0?
+                this.nextConsoleIndex = 0;
+            } else if (challenge.config.dropOrder) {
+                this.sortConsoles();
+            }
+
+            // Auto Drop Time
+            if (challenge.config.autoDropTime) {
+                this.dropTimerMax = challenge.config.autoDropTime;
+                this.dropTimer = this.dropTimerMax; // Apply immediately
+            }
+
+            // Target Year Logic (Sequence)
+            if (challenge.config.strictChronology) {
+                // Get unique years sorted
+                const allYears = this.availableConsoles.map(c => c.year || 9999);
+                this.challengeYears = [...new Set(allYears)].sort((a, b) => a - b);
+                this.targetYearIndex = 0;
+                this.uiManager.updateTargetYear(this.challengeYears[0]);
+            } else {
+                this.uiManager.updateTargetYear(null);
+            }
+        } else {
+            this.dropOrder = 'random'; // Default
+            this.uiManager.updateTargetYear(null);
+        }
+
+        this.startGame();
+
+        // Post-Start Logic
+        setTimeout(() => {
+            this.uiManager.showFloatingText(this.width / 2, this.height / 3, challenge.title, "#ffcc00");
+            this.randomizeNextBlock(); // Refresh UI to match availableConsoles
+        }, 500);
+    }
+
+    // Initial loading of settings
     loadSettings() {
         const s = localStorage.getItem('retroStackSettings');
         if (s) {
@@ -449,8 +707,6 @@ export class Game {
 
                 this.bgIntensity = typeof settings.bgIntensity === 'number' ? settings.bgIntensity : 1.0;
                 const bgSlider = document.getElementById('opt-bg-intensity');
-                if (bgSlider) bgSlider.value = this.bgIntensity * 100;
-
                 if (bgSlider) bgSlider.value = this.bgIntensity * 100;
 
                 // VOLUME
@@ -555,7 +811,6 @@ export class Game {
     pauseGame() {
         if (!this.isPlaying || this.isPaused || this.isGameOver) return;
         this.isPaused = true;
-        this.isPaused = true;
         this.uiManager.showPauseScreen();
         this.inputManager.setScreen('pause');
         // Use stop() to halt Runner and Render completely
@@ -583,6 +838,27 @@ export class Game {
         this.lastTime = performance.now();
     }
 
+    restartGame() {
+        // Handle Restart from Pause
+        this.isPaused = false;
+        this.uiManager.hidePauseScreen();
+
+        // Resume physics first to ensure clean destruction
+        if (this.physicsWorld) {
+            this.physicsWorld.start();
+        }
+
+        if (this.activeChallenge) {
+            // Restart current Challenge
+            this.inputManager.setScreen('gameplay');
+            this.challengeManager.startChallenge(this.activeChallenge.id);
+        } else {
+            // Restart Free Play
+            this.resetGame();
+            this.startGame();
+        }
+    }
+
     resetGame() {
         // Soft Reset - Skip Preloader
         // 1. Cancel Timer
@@ -594,6 +870,10 @@ export class Game {
         this.isPlaying = false;
         this.isPaused = false;
         this.isGameOver = false;
+
+        // Reset available consoles for new game
+        this.availableConsoles = [...this.consoleTypes];
+        this.lastDroppedYear = 0; // For chronological check
 
         // 2. Stop Physics
         if (this.physicsWorld) {
@@ -729,12 +1009,14 @@ export class Game {
                 });
 
                 // Year Logic
+                // Year Logic
                 const rawId = filename.replace('.png', '');
                 const data = CONSOLE_DATA.find(d => d.id === rawId);
                 if (data) {
                     this.consoleTypes[this.consoleTypes.length - 1].year = data.year;
                     this.consoleTypes[this.consoleTypes.length - 1].realName = data.name;
                 } else {
+                    console.warn("Missing data for:", rawId);
                     this.consoleTypes[this.consoleTypes.length - 1].year = 9999;
                 }
 
@@ -772,6 +1054,9 @@ export class Game {
     }
 
     onLoadingComplete() {
+        // Prepare Deck
+        this.availableConsoles = [...this.consoleTypes];
+
         // SORT Console Types based on initial Settings
         this.sortConsoles();
 
@@ -791,8 +1076,14 @@ export class Game {
             document.removeEventListener('touchstart', this._handleIntroClick);
         };
 
-        this._handleIntroKey = (e) => this.skipIntro();
-        this._handleIntroClick = () => this.skipIntro();
+        this._handleIntroKey = (e) => {
+            if (e) e.stopPropagation();
+            this.skipIntro();
+        };
+        this._handleIntroClick = (e) => {
+            if (e) e.stopPropagation();
+            this.skipIntro();
+        };
 
         // Add listeners
         setTimeout(() => {
@@ -959,6 +1250,11 @@ export class Game {
             this.update(dt);
         }
 
+        // FORCE DRAW to prevent disappearing game
+        if (this.isPlaying || this.isPaused || this.isGameOver) {
+            this.draw();
+        }
+
         // Always update input (for menus too)
         this.inputManager.update(dt);
 
@@ -970,6 +1266,17 @@ export class Game {
 
         this.player.speedMultiplier = 1.0;
         this.timerMultiplier = 1.0;
+
+        // Challenge Modifier: Game Speed
+        if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.gameSpeed) {
+            const speed = this.activeChallenge.config.gameSpeed;
+            this.player.speedMultiplier *= speed;
+            this.timerMultiplier *= speed;
+            this.physicsWorld.setTimeScale(speed);
+        } else {
+            this.physicsWorld.setTimeScale(1.0); // Reset to normal
+        }
+
         this.player.chaosMode = false;
         this.resizeChaos = false;
         this.swapOnDropMode = false;
@@ -1023,6 +1330,11 @@ export class Game {
 
         this.checkGameStatus();
 
+        // Check Challenge Win Condition
+        if (this.isPlaying && this.activeChallenge && !this.isGameOver && !this.isPaused) {
+            this.checkChallengeWinCondition();
+        }
+
         // Update Visual Effects
         // 1. Shake
         if (this.shakeTimer > 0) {
@@ -1048,7 +1360,18 @@ export class Game {
 
         if (this.droppedBlocksCount > 0 && !this.isGameOver) {
             this.gameTime += dt;
-            this.uiManager.updateGameTime(this.gameTime);
+
+            // CHALLENGE TIMER LOGIC
+            let displayTime = this.gameTime;
+            let isWarning = false;
+            // Check winCondition for timeLimit
+            if (this.activeChallenge && this.activeChallenge.winCondition && this.activeChallenge.winCondition.timeLimit) {
+                const limit = this.activeChallenge.winCondition.timeLimit;
+                displayTime = Math.max(0, limit - this.gameTime);
+                if (displayTime <= 10) isWarning = true;
+            }
+
+            this.uiManager.updateGameTime(displayTime, isWarning);
         }
 
         // UV FADE LOGIC (Smooth Transition)
@@ -1071,6 +1394,11 @@ export class Game {
         // Start scrolling slowly after first drop to pressure player.
         if (this.droppedBlocksCount > 0 && !this.isGameOver) {
             let pressureSpeed = GameConfig.Gameplay.cameraSpeed || 10; // Base: 10 Pixels per second
+
+            // Challenge Modifier: Zoom Speed
+            if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.pressureSpeedMultiplier) {
+                pressureSpeed *= this.activeChallenge.config.pressureSpeedMultiplier;
+            }
 
             // Add Boost (Decaying)
             // Apply Boost if active (Spam Punishment)
@@ -1096,6 +1424,11 @@ export class Game {
                 pressureSpeed *= GameConfig.Enemies.lipskiScrollMultiplier;
             }
 
+            // Challenge Modifier: Camera Speed
+            if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.gameSpeed) {
+                pressureSpeed *= this.activeChallenge.config.gameSpeed;
+            }
+
             const moveAmount = pressureSpeed * dt;
             this.lastFrameScroll = moveAmount; // Store for visual relative velocity check
             this.physicsWorld.moveWorldDown(moveAmount);
@@ -1108,7 +1441,7 @@ export class Game {
     }
 
     draw() {
-        if (this.isGameOver) return;
+        // Allow drawing even if Game Over (for Victory/Overlay)
         const ctx = this.physicsWorld.render.context;
 
         // Draw Particles BEHIND player? No, top layer usually better.
@@ -1129,13 +1462,21 @@ export class Game {
 
         // Show Preview ONLY if Drop is ready (cooldown <= 0)
         if (this.dropCooldown <= 0) {
-            const type = this.consoleTypes[this.nextConsoleIndex];
+            // Fix: Use availableConsoles if defined (deck), otherwise master list
+            const deck = (this.availableConsoles && this.availableConsoles.length > 0) ? this.availableConsoles : this.consoleTypes;
+            const type = deck[this.nextConsoleIndex];
 
             // Fix: Safety check in case draw() is called before init or with invalid index
             if (!type) return;
 
             let w = type.w;
             let h = type.h;
+
+            // Challenge Modifier: Scale (Visual)
+            if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.blockScale) {
+                w *= this.activeChallenge.config.blockScale;
+                h *= this.activeChallenge.config.blockScale;
+            }
 
             // BOBBING EFFECT (Gibanie)
             // Sync with player animation frame (0-35).
@@ -1176,6 +1517,21 @@ export class Game {
                 ctx.globalAlpha = 1.0;
                 ctx.fillRect(-w / 2, -h / 2, w, h);
                 ctx.globalAlpha = 1.0;
+            }
+
+            // Challenge Visuals: Manual Selection Arrows
+            if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.selectionMode === 'manual') {
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 24px 'VT323'";
+                ctx.textAlign = "center";
+                // Bobbing applies to handY, so arrows bob with box
+                ctx.fillText("<", -w / 2 - 20, 10);
+                ctx.fillText(">", w / 2 + 20, 10);
+
+                // Show Year for easier sorting? Or implies knowledge test?
+                // User said "History Lesson... Do you remember dates?".
+                // So DO NOT show year. Just Name.
+                // But name is in top HUD.
             }
 
             ctx.restore(); // Reset Glow & Transforms
@@ -1314,11 +1670,74 @@ export class Game {
         if (this.isGameOver) return;
         if (this.dropCooldown > 0) return; // Cooldown Lock
 
+        // Safety against empty deck
+        if (!this.availableConsoles[this.nextConsoleIndex]) return;
+
         this.playSFX('block_drop');
 
-        let type = this.consoleTypes[this.nextConsoleIndex];
+        let type = this.availableConsoles[this.nextConsoleIndex];
         let w = type.w;
         let h = type.h;
+
+        // Challenge Check: Strict Chronology (Target Year Logic)
+        if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.strictChronology) {
+            // Ensure we have a target year sequence
+            if (!this.challengeYears || this.challengeYears.length === 0) {
+                // Fallback init if missing (e.g. hot reload)
+                const allYears = this.availableConsoles.map(c => c.year || 9999);
+                this.challengeYears = [...new Set(allYears)].sort((a, b) => a - b);
+                this.targetYearIndex = 0;
+                this.uiManager.updateTargetYear(this.challengeYears[0]);
+            }
+
+            const currentTargetYear = this.challengeYears[this.targetYearIndex];
+            const year = (type.year !== undefined && type.year !== null) ? type.year : 0;
+
+            console.log(`[Chronology] Target: ${currentTargetYear} | Dropped: ${year} (${type.name})`);
+
+            if (year !== currentTargetYear) {
+                console.warn(`[Chronology Fail] ${year} != ${currentTargetYear}`);
+                this.triggerChallengeFail(`ZŁY ROCZNIK! Jest ${currentTargetYear}, a to ${year}.`);
+                return;
+            }
+            // Valid drop for this year. Match found.
+        }
+
+        // Removal from Deck (Manual Mode)
+        if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.selectionMode === 'manual') {
+            // Remove CURRENT selection
+            this.availableConsoles.splice(this.nextConsoleIndex, 1);
+
+            // Index might now be out of bounds (if we dropped last item)
+            // Clamp it to valid range (stay at same index, effectively showing next item, or move back one if at end)
+            if (this.nextConsoleIndex >= this.availableConsoles.length) {
+                this.nextConsoleIndex = Math.max(0, this.availableConsoles.length - 1);
+            }
+
+            // AUTO-ADVANCE YEAR Logic
+            if (this.activeChallenge.config.strictChronology) {
+                const currentTargetYear = this.challengeYears[this.targetYearIndex];
+                // Check if any blocks for this year remain in the deck
+                const stillHasYear = this.availableConsoles.some(c => c.year === currentTargetYear);
+
+                if (!stillHasYear) {
+                    // Advance Year
+                    this.targetYearIndex++;
+                    if (this.targetYearIndex < this.challengeYears.length) {
+                        const nextYear = this.challengeYears[this.targetYearIndex];
+                        this.uiManager.updateTargetYear(nextYear);
+                        // Visual feedback for year change
+                        this.uiManager.showFloatingText(this.width / 2, this.height / 3, `ROCZNIK ${nextYear}`, "#ffff00");
+                        this.playSFX('effect_alert');
+                    } else {
+                        this.uiManager.updateTargetYear("KONIEC");
+                    }
+                }
+            }
+
+            // Update UI immediately to reflect new "held" block
+            this.randomizeNextBlock();
+        }
 
         if (this.resizeChaos) {
             w *= (0.5 + Math.random());
@@ -1338,6 +1757,12 @@ export class Game {
                 w *= (0.5 + Math.random());
                 h *= (0.5 + Math.random());
             }
+        }
+
+        // Challenge Modifier: Scale (Applied FINAL to ensure it works with Chaos too)
+        if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.blockScale) {
+            w *= this.activeChallenge.config.blockScale;
+            h *= this.activeChallenge.config.blockScale;
         }
 
         const bodyOptions = {
@@ -1388,7 +1813,6 @@ export class Game {
         this.physicsWorld.addBody(newConsole);
 
         // Zmyłka Effect: Flip direction on drop!
-        // Zmyłka Effect: Flip direction on drop!
         // Rysław Randomness: 50% chance
         if (this.swapOnDropMode && Math.random() < 0.5) {
             this.player.direction *= -1;
@@ -1398,7 +1822,12 @@ export class Game {
         // Smooth temporary speed increase:
         // Only apply after the first drop (start pressuring from 2nd drop onwards)
         if (this.droppedBlocksCount > 0) {
-            this.pressureBoostTimer = 0.5;
+            // Check Challenge Config: Disable Boost?
+            const noBoost = this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.noDropBoost;
+
+            if (!noBoost) {
+                this.pressureBoostTimer = 0.5;
+            }
         }
 
         this.droppedBlocksCount++;
@@ -1411,7 +1840,12 @@ export class Game {
     dropBomb() {
         if (this.isGameOver || this.currentBomb || this.bombTimer > 0) return;
 
-        if (this.currentBomb || this.bombTimer > 0) return;
+        // Challenge Restriction
+        if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.allowBombs === false) {
+            this.uiManager.showFloatingText(this.player.x, this.player.y, "BOMBY ZABRONIONE!", "#ff0000");
+            this.playSFX('ui_back'); // Error sound
+            return;
+        }
 
         // Cost Check
         if (this.score < 15) {
@@ -1460,8 +1894,36 @@ export class Game {
         this.currentBombSound = this.playSFX('bomb_drop');
     }
 
+    cycleSelection(direction) {
+        if (this.isPaused || this.isGameOver) return;
+
+        // Use availableConsoles instead of full list
+        const deck = this.availableConsoles.length > 0 ? this.availableConsoles : this.consoleTypes;
+
+        let newIndex = this.nextConsoleIndex + direction;
+        if (newIndex < 0) newIndex = deck.length - 1;
+        if (newIndex >= deck.length) newIndex = 0;
+
+        this.nextConsoleIndex = newIndex;
+        this.playSFX('ui_hover'); // Feedback sound
+
+        if (deck[this.nextConsoleIndex]) {
+            this.uiManager.updateNextConsole(deck[this.nextConsoleIndex].name);
+        }
+    }
+
     randomizeNextBlock() {
-        if (this.dropOrder === 'random') {
+        if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.selectionMode === 'manual') {
+            // Manual Mode: Do NOT randomize. Keep current index (user changes it).
+            // But verify bounds just in case availableConsoles shrank.
+            const maxIndex = this.availableConsoles.length - 1;
+            if (this.nextConsoleIndex > maxIndex) {
+                this.nextConsoleIndex = maxIndex;
+            }
+            if (this.nextConsoleIndex < 0) {
+                this.nextConsoleIndex = 0;
+            }
+        } else if (this.dropOrder === 'random') {
             this.nextConsoleIndex = Math.floor(Math.random() * this.consoleTypes.length);
         } else {
             // Sequential modes (asc, desc, alpha_asc, alpha_desc)
@@ -1474,17 +1936,23 @@ export class Game {
         }
 
         // Safety fallback
-        if (this.nextConsoleIndex < 0 || this.nextConsoleIndex >= this.consoleTypes.length) {
+        if (this.nextConsoleIndex < 0 || this.nextConsoleIndex >= this.availableConsoles.length) {
             this.nextConsoleIndex = 0;
         }
 
-        this.uiManager.updateNextConsole(this.consoleTypes[this.nextConsoleIndex].name);
+        // Force Timer Reset on Drop? No.
+
+        if (this.availableConsoles[this.nextConsoleIndex]) {
+            this.uiManager.updateNextConsole(this.availableConsoles[this.nextConsoleIndex].name);
+        } else {
+            this.uiManager.updateNextConsole(""); // Clear if empty
+        }
     }
 
     sortConsoles() {
-        if (this.dropOrder === 'random') return; // Order doesn't matter for random, but good to keep clean
+        if (this.dropOrder === 'random') return;
 
-        this.consoleTypes.sort((a, b) => {
+        this.availableConsoles.sort((a, b) => {
             switch (this.dropOrder) {
                 case 'asc': // Chrono Asc
                     return (a.year || 9999) - (b.year || 9999);
@@ -1647,6 +2115,14 @@ export class Game {
                 const safeY = this.container.clientHeight - 80;
                 this.uiManager.showFloatingText(b.position.x, safeY, "-20 (BĘC!)", "#ff0000");
                 this.playSFX('score_loss');
+
+                // Challenge Modifier: Strict Chronology (Fail if ANY block is lost)
+                // "Wystarczy też, że jak jedno tylko pudełko spadnie... cel niezaliczony."
+                if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.strictChronology) {
+                    this.triggerChallengeFail("UTRACO KONSOLĘ - KONIEC GRY!");
+                    // Remove checks to ensure loop doesn't break logic (though we trigger Game Over so it stops anyway)
+                }
+
                 if (b === this.currentFallingBlock) this.currentFallingBlock = null;
                 this.physicsWorld.removeBody(b);
                 continue;
@@ -1674,6 +2150,12 @@ export class Game {
                     const safeY = this.container.clientHeight - 80;
                     this.uiManager.showFloatingText(b.position.x, safeY, "-20 (STRATA)", "#ff0000");
                     this.playSFX('score_loss');
+
+                    // STRICT FAIL
+                    if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.strictChronology) {
+                        this.triggerChallengeFail("WIEŻA SIĘ ZAWALIŁA - KONIEC!");
+                    }
+
                     this.physicsWorld.removeBody(b);
                     continue;
                 }
@@ -1713,6 +2195,7 @@ export class Game {
 
         // Use unified stats for HUD and Logic
         const stats = this.calculateStats();
+        this.currentTowerHeight = stats.meters; // Store for Win Conditions
         this.uiManager.updateHeight(`${stats.meters}m | ${stats.count} pud.`);
 
         // Update High Score LIVE
@@ -2030,15 +2513,24 @@ export class Game {
         // this.bombTimer. Max is now 0.5s
         updateBtn('btn-bomb', Math.max(0, this.bombTimer), 0.5, '#442222', '#111');
 
-        // Extra check for Bomb: Score cost
+        // Extra check for Bomb: Score cost & Challenge Restriction
         const kBtnBomb = document.getElementById('btn-bomb');
         if (kBtnBomb) {
-            if (this.score < 20) {
+            // Priority 1: Restricted by Challenge
+            if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.allowBombs === false) {
+                kBtnBomb.style.opacity = "0.1";
+                kBtnBomb.style.borderColor = "#300";
+                kBtnBomb.style.pointerEvents = "none";
+                // Optional: Add 'X' overlay or similar logic if needed
+            }
+            // Priority 2: Score Cost
+            else if (this.score < 20) {
                 // Dim it if not enough points, even if ready
                 kBtnBomb.style.opacity = "0.3";
                 kBtnBomb.style.borderColor = "#300";
             } else {
                 kBtnBomb.style.opacity = "1.0";
+                kBtnBomb.style.pointerEvents = "auto";
             }
         }
     }
@@ -2145,6 +2637,15 @@ export class Game {
             }
             if (e.code === 'KeyB') {
                 if (!this.isPaused) this.dropBomb();
+            }
+            // Manual Selection Input
+            if (this.activeChallenge && this.activeChallenge.config && this.activeChallenge.config.selectionMode === 'manual') {
+                if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+                    this.cycleSelection(-1);
+                }
+                if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+                    this.cycleSelection(1);
+                }
             }
         });
 

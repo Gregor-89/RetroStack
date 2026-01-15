@@ -31,10 +31,53 @@
         <p id="loading-text">0%</p>
     </div>
 
-    <!-- Intro Screen -->
     <div id="intro-screen" class="hidden">
         <div id="intro-bg"></div>
         <div id="intro-text">PUSH START BUTTON</div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victory-modal" class="hidden">
+        <div class="modal-content">
+            <h2 id="victory-title">ZWYCIĘSTWO!</h2>
+            <p id="victory-desc">Gratulacje! Pokazałeś kto tu rządzi.</p>
+            <div class="modal-buttons">
+                <button id="btn-victory-back" class="menu-btn btn-gray">POWRÓT DO WYZWAŃ</button>
+                <button id="btn-victory-stay" class="menu-btn btn-green">KONTYNUUJ GRĘ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pause Modal -->
+    <div id="pause-modal" class="hidden screen-overlay">
+        <div class="modal-content" style="background: rgba(0, 0, 0, 0.9); border: 2px solid #555;">
+            <h2 class="title-font" style="font-size: 4em; color: yellow; text-shadow: 4px 4px 0 #000;">PAUZA</h2>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <button id="btn-resume" class="menu-btn btn-green">WZNÓW</button>
+                <button id="btn-restart" class="menu-btn btn-blue">RESTART</button>
+                <button id="btn-quit" class="menu-btn btn-red">MENU GŁÓWNE</button>
+            </div>
+        </div>
+    </div> <!-- Credits Screen -->
+    <div id="credits-screen" class="hidden screen-overlay">
+        <h1>WINNY (LUB NIE)</h1>
+        <div class="credits-content scroll-content">
+            <p>Ta gra została stworzona jednoosobowo przez <a href="https://suppi.pl/gregor" target="_blank"
+                    class="author-link" data-tooltip="Postaw kawkę">Gregora</a>.</p>
+            <p>Specjalnie na konkurs Michała Pisarskiego z okazji 200K widzów.</p>
+            <p>Inspiracją była książka:</p>
+            <p><em>"Przegrani. Legendarne porażki świata gier"</em></p>
+            <p class="small-note">(Gdyż zapewne podobną porażkę zaliczy ta gierka ów konkursie.)</p>
+            <p>Mimo to mam nadzieję, że wyszło chociaż średnio.</p>
+            <p class="small-note">Do stworzenia gry wykorzystano narzędzia generatywne<br>(bo kto by to wszystko
+                ogarnął
+                ręcznie w kilka dni?)
+            </p>
+
+            <img src="assets/pisarion3000.png" alt="Pisarion 3000"
+                style="display: block; margin: 20px auto; max-width: 80%; border-radius: 8px;">
+        </div>
+        <button id="btn-credits-back" class="menu-btn btn-gray">POWRÓT</button>
     </div>
 
     <!-- HUD HEADER -->
@@ -139,16 +182,18 @@
                                     for="opt-enemy-lipski">Lipski</label></div>
                             <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-nrgeek" checked> <label
                                     for="opt-enemy-nrgeek">NrGeek</label></div>
-                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-polowianiuk" checked> <label
-                                    for="opt-enemy-polowianiuk">Połowianiuk</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-polowianiuk" checked>
+                                <label for="opt-enemy-polowianiuk">Połowianiuk</label>
+                            </div>
                             <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-quaz" checked> <label
                                     for="opt-enemy-quaz">Quaz</label></div>
                             <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-ryslaw" checked> <label
                                     for="opt-enemy-ryslaw">Rysław</label></div>
                             <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-uv" checked> <label
                                     for="opt-enemy-uv">UV</label></div>
-                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-zagrajnik" checked> <label
-                                    for="opt-enemy-zagrajnik">Zagrajnik</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-zagrajnik" checked>
+                                <label for="opt-enemy-zagrajnik">Zagrajnik</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -165,17 +210,12 @@
             <img src="assets/retro_stack_logo.png" id="game-logo" alt="RETRO STACK">
             <p>Ułóż jak najwyższą wieżę!</p>
 
-            <button id="btn-start" class="menu-btn">GRA SWOBODNA</button>
-            <button id="btn-how-to" class="menu-btn">JAK GRAĆ</button>
-            <button id="btn-encyclopedia" class="menu-btn">SPRZĘTOPEDIA</button>
-            <button id="btn-options" class="menu-btn">OPCJE</button>
-        </div>
-
-        <!-- Pause Screen -->
-        <div id="pause-screen" class="hidden">
-            <h1>PAUZA</h1>
-            <button id="btn-resume" class="menu-btn">WZNÓW</button>
-            <button id="btn-quit" class="menu-btn">MENU (KONIEC)</button>
+            <button id="btn-start" class="menu-btn btn-green">GRA SWOBODNA</button>
+            <button id="btn-challenges" class="menu-btn btn-red">WYZWANIA</button>
+            <button id="btn-how-to" class="menu-btn btn-blue">JAK GRAĆ</button>
+            <button id="btn-encyclopedia" class="menu-btn btn-purple">SPRZĘTOPEDIA</button>
+            <button id="btn-options" class="menu-btn btn-grey">OPCJE</button>
+            <button id="btn-credits" class="menu-btn btn-gold">AUTOR</button>
         </div>
 
         <!-- How To Play Screen -->
@@ -184,7 +224,8 @@
             <div class="scroll-content">
                 <div class="section-block">
                     <h2>STEROWANIE</h2>
-                    <p style="font-size: 22px; margin-bottom: 5px;"><strong>SPACJA / ZRZUĆ</strong> - Zrzut klocka</p>
+                    <p style="font-size: 22px; margin-bottom: 5px;"><strong>SPACJA / ZRZUĆ</strong> - Zrzut klocka
+                    </p>
                     <p style="font-size: 22px; margin-bottom: 5px;"><strong>B / BOMBA</strong> - Rzut bombą</p>
                     <p style="font-size: 22px; margin-bottom: 5px;"><strong>ESC / II</strong> - Pauza</p>
                 </div>
@@ -363,6 +404,38 @@
             </div>
             <div style="width: 100%; text-align: center; margin-top: 20px; flex-shrink: 0;">
                 <button id="btn-enc-back" class="menu-btn">POWRÓT</button>
+            </div>
+        </div>
+
+        <!-- Challenges Screen -->
+        <div id="challenges-screen" class="hidden screen-overlay">
+            <h1>WYZWANIA</h1>
+            <p class="challenges-intro">
+                O, widzę, że znudziło Ci się bezmyślne układanie wieży w nieskończoność. Brawo.
+                Tutaj znajdziesz scenariusze, które udowodnią Ci, że jednak nie jesteś taki dobry, jak Ci się
+                wydaje.
+                Specjalne utrudnienia, dziwne zasady i zero taryfy ulgowej. Nie płacz, jak nie wyjdzie.
+            </p>
+            <div id="challenges-list" class="scroll-content" style="height: 50vh;">
+                <!-- Challenges injected by JS -->
+            </div>
+            <div style="width: 100%; text-align: center; margin-top: 20px; flex-shrink: 0;">
+                <button id="btn-challenges-back" class="menu-btn">POWRÓT</button>
+            </div>
+        </div>
+
+        <!-- Challenge Details Modal -->
+        <div id="challenge-details-modal" class="hidden">
+            <div class="modal-content">
+                <h2 id="modal-title">TYTUŁ WYZWANIA</h2>
+                <p id="modal-desc">Opis wyzwania...</p>
+                <div class="modal-stats" id="modal-stats" style="display:none;">
+                    <p>TWÓJ REKORD: <span id="modal-best-score">-</span></p>
+                </div>
+                <div class="modal-buttons">
+                    <button id="btn-challenge-start" class="menu-btn">PODEJMIJ RĘKAWICĘ</button>
+                    <button id="btn-challenge-close" class="menu-btn small-btn">X</button>
+                </div>
             </div>
         </div>
 

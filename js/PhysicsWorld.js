@@ -94,8 +94,14 @@ export class PhysicsWorld {
     }
 
     stop() {
-        Render.stop(this.render);
+        // Render.stop(this.render); // MD: Fix - Keep rendering during pause/victory
         Runner.stop(this.runner);
+    }
+
+    setTimeScale(scale) {
+        if (this.engine && this.engine.timing) {
+            this.engine.timing.timeScale = scale;
+        }
     }
 
     addBody(body) {
