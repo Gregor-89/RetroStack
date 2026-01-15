@@ -1,0 +1,964 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&subset=latin,latin-ext&display=swap');
+
+/* GLOBAL RESET & BOX SIZING */
+* {
+    box-sizing: border-box;
+    /* Fixes width mismatch (padding/border included in width) */
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #111;
+    font-family: 'VT323', monospace;
+    font-size: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Use dynamic viewport height to account for mobile address bars */
+    height: 100vh;
+    height: 100dvh;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+}
+
+/* =========================================
+   HEADER (Fixed Height)
+   ========================================= */
+#game-header {
+    flex: 0 0 80px;
+    width: 600px;
+    max-width: 100%;
+    background: #222;
+    border: 4px solid #444;
+    border-bottom: none;
+    position: relative;
+    /* Added for Timer absolute positioning */
+    /* Seamless join */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    color: #fff;
+    z-index: 20;
+}
+
+/* =========================================
+   GAME CONTAINER (Flexible Helper)
+   ========================================= */
+#game-container {
+    flex: 1 1 auto;
+    /* Grow and shrink */
+    width: 600px;
+    max-width: 100%;
+    position: relative;
+    border: 4px solid #444;
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    /* Ensure it doesn't push controls off screen */
+    min-height: 0;
+}
+
+/* =========================================
+   CONTROLS (Fixed Height Footer)
+   ========================================= */
+#controls {
+    flex: 0 0 auto;
+    width: 600px;
+    max-width: 100%;
+    padding: 10px 10px 20px 10px;
+    /* Extra bottom padding for safety */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #111;
+    border-top: 4px solid #333;
+    gap: 15px;
+    z-index: 20;
+}
+
+/* =========================================
+   HUD ELEMENTS
+   ========================================= */
+#score-board,
+#height-board,
+#time-board,
+#next-console {
+    position: relative;
+    background: #111;
+    border: 2px solid #555;
+    border-radius: 4px;
+    padding: 5px 10px;
+    min-width: 100px;
+    /* Slightly smaller min-width to fit 3 items */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#score-board .label,
+#height-board .label,
+#time-board .label,
+#next-console .label {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 2px;
+}
+
+#score-board .value,
+#height-board .value,
+#time-board .value {
+    font-size: 24px;
+    color: #ffcc00;
+}
+
+#next-name {
+    font-size: 24px;
+    color: #ffcc00;
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#ui-layer>div {
+    pointer-events: auto;
+}
+
+/* CRT SCANLINES */
+#crt-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%,
+            rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg,
+            rgba(255, 0, 0, 0.06),
+            rgba(0, 255, 0, 0.02),
+            rgba(0, 0, 255, 0.06));
+    background-size: 100% 4px, 6px 100%;
+    /* Vertical scanlines + RGB split */
+    z-index: 900;
+    /* Above game, below UI text? No, below UI maybe better for usability? Let's put UNDER UI */
+    pointer-events: none;
+    opacity: 0.6;
+    animation: scanlineMove 0.3s linear infinite;
+}
+
+@keyframes scanlineMove {
+    0% {
+        background-position: 0 0, 0 0;
+    }
+
+    100% {
+        background-position: 0 4px, 0 0;
+    }
+}
+
+/* =========================================
+   TIMER
+   ========================================= */
+#timer-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 50;
+}
+
+#timer-bar {
+    height: 100%;
+    width: 0%;
+    background-color: #ffcc00;
+    transition: width 0.1s linear;
+}
+
+/* =========================================
+   MENUS
+   ========================================= */
+#start-screen,
+#pause-screen,
+#game-over-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+#start-screen {
+    background: #111;
+    z-index: 200;
+}
+
+#game-logo {
+    max-width: 80%;
+    height: auto;
+    margin-bottom: 20px;
+    animation: logoPulse 3s infinite ease-in-out;
+}
+
+@keyframes logoPulse {
+    0% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.5));
+    }
+
+    50% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 15px rgba(255, 204, 0, 0.8));
+    }
+
+    100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.5));
+    }
+}
+
+#pause-screen,
+#game-over-screen {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.hidden {
+    display: none !important;
+}
+
+h1 {
+    font-size: 48px;
+    /* Safe size */
+    color: #ffcc00;
+    margin-bottom: 20px;
+    text-align: center;
+    text-shadow: 4px 4px 0 #ff0000;
+    font-weight: normal;
+}
+
+.instructions {
+    font-size: 20px;
+    color: #ccc;
+    margin-bottom: 30px;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.menu-btn {
+    background: #333;
+    color: #fff;
+    border: 3px solid #fff;
+    padding: 15px 40px;
+    min-width: 200px;
+    font-family: 'VT323', monospace;
+    font-size: 28px;
+    cursor: pointer;
+    text-transform: uppercase;
+    margin: 15px;
+    box-shadow: 4px 4px 0 #000;
+}
+
+.menu-btn:hover {
+    background: #555;
+    color: #ffcc00;
+    border-color: #ffcc00;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 #000;
+}
+
+.menu-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 #000;
+}
+
+/* Focused State for Gamepad/Keyboard */
+.focused {
+    background: #555;
+    color: #ffcc00;
+    border-color: #ffcc00;
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0 #000;
+    outline: 2px solid #ff0000;
+    /* Extra visibility */
+}
+
+/* =========================================
+   CONTROLS
+   ========================================= */
+.touch-btn {
+    height: 70px;
+    /* Nice touch target */
+    font-family: 'VT323', monospace;
+    font-size: 24px;
+    text-align: center;
+    background: #222;
+    border: 3px solid #555;
+    color: #ddd;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 0 10px #000;
+    border-radius: 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.small-btn {
+    height: 50px;
+    width: 60px;
+    font-size: 20px;
+    padding: 0;
+    margin-left: 10px;
+    border: 2px solid #555;
+}
+
+#btn-pause-header:hover {
+    background: #444;
+    border-color: #ffcc00;
+    color: #ffcc00;
+    transform: scale(1.1);
+}
+
+.touch-btn:active {
+    background: #444;
+    border-color: #fff;
+    color: #fc0;
+    transform: scale(0.98);
+}
+
+#btn-bomb {
+    flex: 0 0 120px;
+    font-size: 20px;
+    border-color: #aa4444;
+}
+
+#btn-drop {
+    flex: 1;
+    background: #333;
+    border-color: #aaa;
+    color: #fff;
+    font-size: 32px;
+}
+
+/* =========================================
+   LOADING SCREEN
+   ========================================= */
+#loading-screen {
+    position: fixed;
+    /* Popped out of game container */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    background-image:
+        radial-gradient(#113311 2px, transparent 2px),
+        linear-gradient(rgba(0, 20, 0, 1), rgba(0, 10, 0, 1));
+    background-size: 30px 30px, 100% 100%;
+    z-index: 9999;
+    /* Above everything */
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#loading-screen h1 {
+    font-size: 60px;
+    color: #00ff00;
+    text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+    margin-bottom: 20px;
+    letter-spacing: 5px;
+    font-family: 'VT323', monospace;
+}
+
+#loading-screen p {
+    color: #00aa00;
+    font-size: 20px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+#loading-bar-container {
+    width: 300px;
+    height: 40px;
+    background: #001100;
+    border: 4px solid #00ff00;
+    padding: 4px;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+    border-radius: 4px;
+    /* Slight retro roundness or keep square? Square is more retro. */
+    border-radius: 0;
+}
+
+#loading-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: repeating-linear-gradient(90deg,
+            #00ff00,
+            #00ff00 10px,
+            #00cc00 10px,
+            #00cc00 20px);
+    box-shadow: 0 0 10px #00ff00;
+}
+
+#loading-text {
+    font-size: 32px;
+    color: #00ff00;
+    margin-top: 20px;
+    text-shadow: 0 0 5px #00ff00;
+    font-weight: bold;
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* =========================================
+   OPTIONS SCREEN
+   ========================================= */
+#options-screen {
+    background: #111;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* width: 80%; REMOVED */
+    /* max-width: 400px; REMOVED */
+    width: 100%;
+    /* Ensure full width now */
+    margin: 15px 0;
+    margin: 15px 0;
+    font-size: 24px;
+    color: #fff;
+    border-bottom: 1px dashed #333;
+    padding-bottom: 15px;
+}
+
+.option-row label {
+    flex: 1;
+    text-align: left;
+}
+
+.option-row input[type="checkbox"] {
+    width: 30px;
+    height: 30px;
+    accent-color: #ffcc00;
+    cursor: pointer;
+}
+
+.menu-select {
+    background: #222;
+    color: #ffcc00;
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    border: 2px solid #555;
+    padding: 5px 10px;
+    outline: none;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 5px;
+}
+
+.menu-select option {
+    background: #222;
+    color: #fff;
+}
+
+/* =========================================
+   NEW SCREENS (How To & Encyclopedia)
+   ========================================= */
+.screen-overlay {
+    position: fixed;
+    /* Popped out */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    /* Mobile browser friendly */
+    background: rgba(17, 17, 17, 0.95);
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    color: #fff;
+    overflow: hidden;
+    /* Prevent body scroll, handle inside */
+}
+
+.scroll-content {
+    flex: 1;
+    /* Take remaining space */
+    width: 100%;
+    max-width: 800px;
+    overflow-y: auto;
+    /* Scroll inside this element */
+    min-height: 0;
+    /* Critical for flex child scrolling */
+    padding: 20px;
+    border: 2px solid #555;
+    background: #222;
+    margin-bottom: 20px;
+    /* Scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #ffcc00 #222;
+}
+
+.scroll-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.scroll-content::-webkit-scrollbar-track {
+    background: #222;
+}
+
+.scroll-content::-webkit-scrollbar-thumb {
+    background-color: #ffcc00;
+    border-radius: 4px;
+}
+
+/* HOW TO PLAY */
+.section-block {
+    margin-bottom: 30px;
+}
+
+.section-block h2 {
+    color: #ffcc00;
+    border-bottom: 2px solid #555;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+}
+
+.enemy-card {
+    display: flex;
+    align-items: center;
+    background: #333;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 2px solid #444;
+}
+
+.enemy-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 24px;
+    color: #000;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.enemy-info h3 {
+    margin: 0 0 5px 0;
+    color: #fff;
+}
+
+.enemy-info p {
+    margin: 0;
+    font-size: 18px;
+    color: #ccc;
+}
+
+
+
+/* SLIDER STYLING */
+input[type=range] {
+    -webkit-appearance: none;
+    background: transparent;
+    width: 100%;
+    /* Change to 100% to be safe, flex will override or this helps */
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 20px;
+    width: 20px;
+    background: #fff;
+    border: 2px solid #555;
+    cursor: pointer;
+    margin-top: -8px;
+    box-shadow: 2px 2px 0 #000;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: #444;
+    border: 1px solid #666;
+}
+
+/* ENCYCLOPEDIA */
+.encyclopedia-grid {
+    display: grid;
+    gap: 20px;
+    /* Responsive grid? Or simple list for consistent text? */
+    /* List view is better for descriptions. */
+    display: flex;
+    flex-direction: column;
+}
+
+.encyclopedia-item {
+    display: flex;
+    background: #1a1a1a;
+    border: 2px solid #444;
+    padding: 15px;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.encyclopedia-item img {
+    width: 120px;
+    height: auto;
+    object-fit: contain;
+    background: #000;
+    border: 1px solid #555;
+    padding: 5px;
+}
+
+.encyclopedia-text {
+    flex: 1;
+}
+
+.encyclopedia-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #444;
+    padding-bottom: 5px;
+}
+
+.encyclopedia-header h3 {
+    margin: 0;
+    font-size: 24px;
+    color: #ffcc00;
+}
+
+.encyclopedia-header .year {
+    font-size: 20px;
+    color: #888;
+}
+
+.encyclopedia-text p {
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+    font-size: 18px;
+}
+
+.encyclopedia-trivia {
+    font-style: italic;
+    color: #aaa;
+    font-size: 16px;
+    background: #222;
+    padding: 5px 10px;
+    border-left: 3px solid #ffcc00;
+}
+
+.fixed-bottom {
+    flex: 0 0 auto;
+    margin-top: 20px;
+    z-index: 600;
+}
+
+/* LIGHTBOX */
+#lightbox-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 1000;
+    /* Above everything */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    /* Click to close */
+    padding: 20px;
+}
+
+#lightbox-img {
+    max-width: 90%;
+    max-height: 80vh;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 1);
+    border: 2px solid #555;
+    background: #111;
+    /* Nearest Neighbor for pixel art crispness if needed, 
+        but these are likely photos or high-res sprites */
+    image-rendering: pixelated;
+}
+
+#lightbox-caption {
+    color: #ffcc00;
+    font-size: 32px;
+    margin-top: 20px;
+    text-shadow: 2px 2px 0 #000;
+}
+
+/* Mission Report Style */
+.mission-report {
+    background: rgba(0, 0, 0, 0.4);
+    border-top: 2px dashed #ffcc00;
+    border-bottom: 2px dashed #ffcc00;
+    padding: 15px 0;
+    margin: 20px auto;
+    width: 100%;
+    font-family: 'VT323', monospace;
+}
+
+.option-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.option-row label {
+    flex-shrink: 0;
+    width: 180px;
+    /* Fixed width for nice alignment */
+    margin-right: 10px;
+    color: #ffd700;
+    text-align: left;
+}
+
+.option-row input[type="range"] {
+    flex-grow: 1;
+    width: auto;
+    cursor: pointer;
+}
+
+/* Ensure controls box also fills space */
+.menu-select {
+    width: 100%;
+    margin-top: 5px;
+    padding: 10px;
+    background: #000;
+    color: #ffd700;
+    border: 2px solid #555;
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+}
+
+.report-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 24px;
+    color: #fff;
+    margin: 5px 20px;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.report-label {
+    color: #aaa;
+}
+
+.report-dots {
+    flex-grow: 1;
+    border-bottom: 2px dotted #444;
+    margin: 0 10px;
+    position: relative;
+    /* top: -5px removed for bottom alignment */
+}
+
+.report-value {
+    color: #ffcc00;
+    font-weight: bold;
+    font-size: 28px;
+}
+
+/* DESKTOP ENHANCEMENT */
+/* If screen is wide (Desktop/Landscape), increase Play Area by 25% (600px -> 750px) */
+@media screen and (min-width: 1024px) {
+
+    #game-header,
+    #game-container,
+    #controls {
+        width: 750px;
+    }
+}
+
+/* =========================================
+   INTRO SCREEN
+   ========================================= */
+#intro-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    z-index: 500;
+    /* Above start screen (200) but below Loading (9999) */
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    /* Text at bottom */
+    padding-bottom: 10vh;
+}
+
+#intro-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('assets/intro/intro.png') no-repeat center center;
+    background-size: contain;
+    /* Or cover, depending on preference. Contain preserves ratio. */
+    z-index: 1;
+}
+
+#intro-text {
+    position: relative;
+    z-index: 2;
+    color: #ffcc00;
+    font-size: 48px;
+    font-family: 'VT323', monospace;
+    text-shadow: 4px 4px 0 #000;
+    animation: pulseText 1.5s infinite;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.5);
+    /* Legibility */
+    padding: 10px 30px;
+    border-radius: 10px;
+}
+
+@keyframes pulseText {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(0.95);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Fade In/Out Classes */
+.fade-in {
+    animation: fadeIn 2s forwards;
+}
+
+.fade-out {
+    animation: fadeOut 1s forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+/* =========================================
+   BOOT SCREEN
+   ========================================= */
+#boot-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    z-index: 10000;
+    /* Highest priority */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 40px;
+    font-family: 'VT323', monospace;
+}
+
+.boot-text p {
+    color: #00ff00;
+    font-size: 24px;
+    margin: 5px 0;
+    text-shadow: 2px 2px 0 #003300;
+}
+
+.cursor-blink {
+    display: inline-block;
+    color: #00ff00;
+    animation: blink 1s step-end infinite;
+}
+
+/* Ensure Loading Screen is hidden by default if Boot is Active */
+#loading-screen.hidden {
+    display: none !important;
+}
+
+#loading-screen.active {
+    display: flex !important;
+}

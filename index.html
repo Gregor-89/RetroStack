@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&subset=latin,latin-ext&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+
+<body>
+
+
+
+    <!-- Boot Screen (Audio Unlock) -->
+    <div id="boot-screen" class="screen active">
+        <div class="boot-text" id="boot-text-container">
+            <!-- Text injected via JS -->
+            <div class="cursor-blink">_</div>
+        </div>
+    </div>
+
+    <!-- LOADING SCREEN -->
+    <div id="loading-screen" class="screen hidden">
+        <h1>RETRO STACK</h1>
+        <p>LOADING ASSETS...</p>
+        <div id="loading-bar-container">
+            <div id="loading-bar-fill"></div>
+        </div>
+        <p id="loading-text">0%</p>
+    </div>
+
+    <!-- Intro Screen -->
+    <div id="intro-screen" class="hidden">
+        <div id="intro-bg"></div>
+        <div id="intro-text">PUSH START BUTTON</div>
+    </div>
+
+    <!-- HUD HEADER -->
+    <div id="game-header" class="hidden">
+        <div id="score-board">
+            <span class="label">WYNIK</span>
+            <span id="score" class="value">0</span>
+        </div>
+
+        <div id="height-board">
+            <span class="label">WYSOKOŚĆ</span>
+            <span id="height" class="value">0m</span>
+        </div>
+
+        <div id="time-board">
+            <span class="label">CZAS</span>
+            <span id="time-display" class="value">00:00</span>
+        </div>
+
+        <div id="next-console">
+            <span class="label">NASTĘPNY</span>
+            <div id="next-name">...</div>
+        </div>
+
+        <button id="btn-pause-header" class="touch-btn small-btn">II</button>
+    </div>
+
+    <div id="game-container">
+        <!-- CRT Overlay -->
+        <div id="crt-overlay"></div>
+
+        <div id="ui-layer">
+            <!-- Floating texts will be appended here -->
+        </div>
+
+        <div id="timer-container">
+            <div id="timer-bar"></div>
+        </div>
+
+
+
+        <!-- Options Screen -->
+        <div id="options-screen" class="hidden">
+            <h1>OPCJE</h1>
+            <div class="scroll-content" style="height: 60vh;">
+                <div class="section-block">
+                    <h2>OGÓLNE</h2>
+                    <div class="option-row">
+                        <label>GŁOŚNOŚĆ MUZYKI:</label>
+                        <input type="range" id="opt-music-vol" min="0" max="100" value="50">
+                    </div>
+                    <div class="option-row">
+                        <label>GŁOŚNOŚĆ EFEKTÓW:</label>
+                        <input type="range" id="opt-sfx-vol" min="0" max="100" value="50">
+                    </div>
+                    <div class="option-row">
+                        <label>EFEKT CRT:</label>
+                        <input type="checkbox" id="opt-crt-toggle" checked>
+                    </div>
+                    <div class="option-row">
+                        <label>SIŁA FILTRA CRT:</label>
+                        <input type="range" id="opt-crt-intensity" min="0" max="100" value="60">
+                    </div>
+                    <div class="option-row">
+                        <label>TŁO (SIATKA):</label>
+                        <input type="checkbox" id="opt-bg-toggle" checked>
+                    </div>
+                    <div class="option-row">
+                        <label>SIŁA TŁA:</label>
+                        <input type="range" id="opt-bg-intensity" min="0" max="100" value="100">
+                    </div>
+                    <div class="option-row">
+                        <label>WSTRZĄSY EKRANU:</label>
+                        <input type="checkbox" id="opt-shake-toggle" checked>
+                    </div>
+                </div>
+
+                <div class="section-block">
+                    <h2>GRA SWOBODNA</h2>
+                    <div class="option-row" style="flex-direction: column; align-items: flex-start;">
+                        <label style="margin-bottom: 5px;">KOLEJNOŚĆ PUDEŁEK:</label>
+                        <select id="opt-drop-order" class="menu-select">
+                            <option value="random">LOSOWA</option>
+                            <option value="asc">CHRONOLOGICZNIE (1972->2026)</option>
+                            <option value="desc">ODWROTNIE (2026->1972)</option>
+                            <option value="alpha_asc">ALFABETYCZNIE (A->Z)</option>
+                            <option value="alpha_desc">ALFABETYCZNIE (Z->A)</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top: 15px;">
+                        <label style="display: block; margin-bottom: 5px; color: #aaa; font-size: 18px;">DOSTĘPNI
+                            PRZECIWNICY:</label>
+                        <div id="opt-enemies-list"
+                            style="display: flex; flex-wrap: wrap; gap: 10px; border: 1px solid #444; padding: 10px; background: rgba(0,0,0,0.3);">
+                            <!-- Checkboxes injected by JS or hardcoded -->
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-archon" checked> <label
+                                    for="opt-enemy-archon">Archon</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-kosinski" checked> <label
+                                    for="opt-enemy-kosinski">Kosiński</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-lipski" checked> <label
+                                    for="opt-enemy-lipski">Lipski</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-nrgeek" checked> <label
+                                    for="opt-enemy-nrgeek">NrGeek</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-polowianiuk" checked> <label
+                                    for="opt-enemy-polowianiuk">Połowianiuk</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-quaz" checked> <label
+                                    for="opt-enemy-quaz">Quaz</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-ryslaw" checked> <label
+                                    for="opt-enemy-ryslaw">Rysław</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-uv" checked> <label
+                                    for="opt-enemy-uv">UV</label></div>
+                            <div class="enemy-toggle"><input type="checkbox" id="opt-enemy-zagrajnik" checked> <label
+                                    for="opt-enemy-zagrajnik">Zagrajnik</label></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="width: 100%; text-align: center; margin-top: 20px;">
+                <button id="btn-options-back" class="menu-btn">POWRÓT</button>
+            </div>
+        </div>
+
+
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="hidden">
+            <img src="assets/retro_stack_logo.png" id="game-logo" alt="RETRO STACK">
+            <p>Ułóż jak najwyższą wieżę!</p>
+
+            <button id="btn-start" class="menu-btn">GRA SWOBODNA</button>
+            <button id="btn-how-to" class="menu-btn">JAK GRAĆ</button>
+            <button id="btn-encyclopedia" class="menu-btn">SPRZĘTOPEDIA</button>
+            <button id="btn-options" class="menu-btn">OPCJE</button>
+        </div>
+
+        <!-- Pause Screen -->
+        <div id="pause-screen" class="hidden">
+            <h1>PAUZA</h1>
+            <button id="btn-resume" class="menu-btn">WZNÓW</button>
+            <button id="btn-quit" class="menu-btn">MENU (KONIEC)</button>
+        </div>
+
+        <!-- How To Play Screen -->
+        <div id="how-to-play-screen" class="hidden screen-overlay">
+            <h1>JAK GRAĆ?</h1>
+            <div class="scroll-content">
+                <div class="section-block">
+                    <h2>STEROWANIE</h2>
+                    <p style="font-size: 22px; margin-bottom: 5px;"><strong>SPACJA / ZRZUĆ</strong> - Zrzut klocka</p>
+                    <p style="font-size: 22px; margin-bottom: 5px;"><strong>B / BOMBA</strong> - Rzut bombą</p>
+                    <p style="font-size: 22px; margin-bottom: 5px;"><strong>ESC / II</strong> - Pauza</p>
+                </div>
+
+                <div class="section-block">
+                    <h2>CEL GRY</h2>
+                    <div style="display: flex; flex-direction: row; align-items: center; gap: 15px;">
+                        <div class="enemy-icon" style="background: transparent;">
+                            <img src="assets/characters/pisarski-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;" alt="Michał Pisarski">
+                        </div>
+                        <div>
+                            <p style="margin-top: 0;">Buduj wieżę do nieba! Zrzucaj pudła z konsolami i innymi,
+                                ikonicznymi graj-sprzętami. Dbaj o stabilność wieży i nie daj jej się przewrócić. Im
+                                wyższa wieża, tym większa chwała, która obchodzi zupełnie nikogo.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-block">
+                    <h2>OPONENCI czyli tzw. "YOUTUBERZY"</h2>
+                    <p style="margin-bottom: 20px; color: #aaa;">Budujesz sobie na spokojnie wieżę, ale nie, nie da
+                        rady, bo co jakiś czas wpada do Ciebie inny znajomy YouTuber, który, ku
+                        złośliwości i zazdrości, chce Ci trochę namieszać w planach. Lepiej w porę ich spławiaj przy
+                        użyciu bombki albo... wykorzystaj na swoją korzyść!</p>
+
+                    <!-- ARCHON -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/archon-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>ARCHON</h3>
+                            <p>Szef Wszystkich Szefów. Posiadł wiedzę o każdym sprzęcie, zanim ten został
+                                wyprodukowany.
+                                Uważa, że Michał układa wieżę "mało merytorycznie".</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Władca Czasu. Przyspiesza upływ licznika
+                                zrzutu. Myśl szybko, albo spadaj!</p>
+                        </div>
+                    </div>
+
+                    <!-- KOSIŃSKI -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/kosinski-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>DAWID KOSIŃSKI</h3>
+                            <p>Człowiek-Bomba. Jego entuzjazm do technologii jest tak wielki, że aż wybucha.
+                                Dosłownie.
+                                Przyszedł, bo "słyszał coś o fajnych gadżetach".</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Autodestrukcja. Po chwili wybucha z
+                                potężną
+                                siłą, rozrzucając wszystko dookoła. Zabij go bombą, zanim on ukruszy Twoją wieżę!
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- LIPSKI -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/lipski-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>KACPER LIPSKI</h3>
+                            <p>YouTuber w ciągłym biegu. Dla niego news sprzed 5 minut to prehistoria. Uważa, że
+                                Michał
+                                buduje to "za wolno jak na dzisiejsze standardy SEO".</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Speed Run. Kamera ucieka do góry
+                                dwukrotnie
+                                szybciej. Buduj szybciej albo spadaj w czeluście!</p>
+                        </div>
+                    </div>
+
+                    <!-- NRGEEK -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/nrgeek-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>NRGEEK</h3>
+                            <p>Specjalista od crapów. Jest tu tylko po to, by sprawdzić, czy ta wieża zawali się tak
+                                spektakularnie jak kariery innych YouTuberów. Robi to dla kontentu.</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Crap Drop. Podmienia klocek na losowy w
+                                ostatniej chwili. Miało być PSP, a tu spada Xbox! Nosz co za kloc..</p>
+                        </div>
+                    </div>
+
+                    <!-- POŁOWIANIUK -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/polowianiuk-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>MARCIN POŁOWIANIUK</h3>
+                            <p>Ekspert od innowacji. Stwierdził, że "płaskie układanie jest nudne" i postanowił
+                                wprowadzić trochę rotacji do tego skostniałego formatu.</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Rotor. Trzymany klocek obraca się w
+                                kółko.
+                                Spróbuj teraz trafić idealnie płasko. Powodzenia.</p>
+                        </div>
+                    </div>
+
+                    <!-- QUAZ -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/quaz-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>QUAZ</h3>
+                            <p>Mistrz analizy pikseli i glitchy. Przybył udowodnić, że fizyka tej gry jest zepsuta,
+                                a
+                                Michał tylko "wymusza bugi".</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Glitch Mode. Chaotycznie odwraca kierunek
+                                ruchu Michała Mózg paruje.</p>
+                        </div>
+                    </div>
+
+                    <!-- RYSLAW -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/ryslaw-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>RYSŁAW</h3>
+                            <p>Legendarny tłumacz. Twierdzi, że Michał błędnie zinterpretował słowo "stack", więc
+                                postanowił mu to "wyprostować" w locie.</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Zmyłka Tłumacza. W momencie zrzutu Twoja
+                                postać zmienia kierunek tuchu, chociaż matematycy bardziej by mówili o jego zwrocie.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- UV -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/uv-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>UV</h3>
+                            <p>Weteran branży. Widział już wszystko, więc Twoja wieża nie robi na nim wrażenia.
+                                Postanowił ją ukryć, żeby nie psuła mu widoku.</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Ghosting. Wszystkie ułożone klocki stają
+                                się
+                                niewidzialne. Budujesz na pamięć lub na czuja.</p>
+                        </div>
+                    </div>
+
+                    <!-- ZAGRAJNIK -->
+                    <div class="enemy-card">
+                        <div class="enemy-icon" style="background: transparent;"><img
+                                src="assets/characters/zagrajnik-idle.png"
+                                style="width: 100%; height: 100%; object-fit: contain;"></div>
+                        <div class="enemy-info">
+                            <h3>ZAGRAJNIK</h3>
+                            <p>Człowiek, który traci włosy szybciej niż mu odrastają. Wpada do RetroStacka, bo
+                                uznał tempo Michała za "niegrywalnie wolne".</p>
+                            <p class="effect-desc"><strong>EFEKT:</strong> Przyspiesza Twój ruch dwukrotnie.
+                                Powodzenia
+                                z celowaniem!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="width: 100%; text-align: center; margin-top: 20px; flex-shrink: 0;">
+                <button id="btn-how-back" class="menu-btn">POWRÓT</button>
+            </div>
+        </div>
+
+        <!-- Encyclopedia Screen -->
+        <div id="encyclopedia-screen" class="hidden screen-overlay">
+            <h1>SPRZĘTOPEDIA</h1>
+            <div id="encyclopedia-list" class="scroll-content" style="height: 60vh;">
+                <!-- Items injected by JS -->
+            </div>
+            <div style="width: 100%; text-align: center; margin-top: 20px; flex-shrink: 0;">
+                <button id="btn-enc-back" class="menu-btn">POWRÓT</button>
+            </div>
+        </div>
+
+        <!-- LIGHTBOX -->
+        <div id="lightbox-overlay" class="hidden">
+            <img id="lightbox-img" src="" alt="Full Size">
+            <p id="lightbox-caption"></p>
+        </div>
+
+        <div id="game-over-screen" class="hidden">
+            <h1>GAME OVER</h1>
+            <p>Twoja wieża zniknęła w czeluściach!</p>
+            <p>Wynik końcowy: <span id="final-score">0</span></p>
+            <p>Osiągnięta wysokość: <span id="final-height">0m</span></p>
+            <button id="btn-retry" class="menu-btn">Spróbuj ponownie</button>
+            <button id="btn-gameover-quit" class="menu-btn">MENU (KONIEC)</button>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="btn-bomb" class="touch-btn">BOMBA (B)</button>
+        <button id="btn-drop" class="touch-btn big-btn">ZRZUĆ (SPACE)</button>
+    </div>
+
+    <script type="module" src="js/Game.js"></script>
+</body>
+
+</html>
